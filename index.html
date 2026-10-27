@@ -6,6 +6,41 @@
         <meta name="description" content="Dragon Flames — High-performance retro gaming emulator powered by EmulatorJS with multi-system support and custom ROM loader.">
         <link rel="icon" href="docs/favicon.ico" sizes="16x16 32x32 48x48 64x64" type="image/vnd.microsoft.icon">
         <meta name="viewport" content="width = device-width, initial-scale = 1">
+        <script>
+            // Fallback for screen wake lock when permissions policy restricts it
+            (function() {
+                function createSentinel(type) {
+                    return {
+                        released: false,
+                        type: type || 'screen',
+                        release: function() { this.released = true; return Promise.resolve(); },
+                        addEventListener: function() {},
+                        removeEventListener: function() {},
+                        dispatchEvent: function() { return false; },
+                        onrelease: null
+                    };
+                }
+                try {
+                    if (typeof navigator !== 'undefined' && 'wakeLock' in navigator && navigator.wakeLock) {
+                        var originalRequest = navigator.wakeLock.request;
+                        navigator.wakeLock.request = function(type) {
+                            try {
+                                return originalRequest.apply(this, arguments).catch(function() {
+                                    return createSentinel(type);
+                                });
+                            } catch (e) {
+                                return Promise.resolve(createSentinel(type));
+                            }
+                        };
+                    }
+                } catch (e) {}
+                window.addEventListener('unhandledrejection', function(event) {
+                    if (event.reason && (event.reason.name === 'NotAllowedError' || (event.reason.message && event.reason.message.includes('WakeLock')))) {
+                        event.preventDefault();
+                    }
+                });
+            })();
+        </script>
         <style>
              body, html {
                 height: 100%;

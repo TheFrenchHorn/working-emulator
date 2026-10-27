@@ -646,8 +646,10 @@ class EmulatorJS {
         });
     }
     initGameCore(js, wasm, thread) {
+        // Prevent uncaught errors when wake lock is restricted by permissions policy
+        const guard = "(function(){try{if(typeof navigator!=='undefined'&&'wakeLock'in navigator&&navigator.wakeLock){var orig=navigator.wakeLock.request;navigator.wakeLock.request=function(t){try{return orig.apply(this,arguments).catch(function(){return{released:false,type:t||'screen',release:function(){return Promise.resolve()},addEventListener:function(){},removeEventListener:function(){},dispatchEvent:function(){return false},onrelease:null}})}catch(e){return Promise.resolve({released:false,type:t||'screen',release:function(){return Promise.resolve()},addEventListener:function(){},removeEventListener:function(){},dispatchEvent:function(){return false},onrelease:null})}}}}catch(e){}})();\n";
         let script = this.createElement("script");
-        script.src = URL.createObjectURL(new Blob([js], { type: "application/javascript" }));
+        script.src = URL.createObjectURL(new Blob([guard, js], { type: "application/javascript" }));
         script.addEventListener("load", () => {
             this.initModule(wasm, thread);
         });

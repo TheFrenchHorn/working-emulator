@@ -1,6 +1,6 @@
 {
   "name": "Dragon Flames",
   "description": "Dragon Flames — High-performance retro gaming emulator powered by EmulatorJS with multi-system support and custom ROM loader.",
-  "requestFramePermissions": [],
+  "requestFramePermissions": ["screen-wake-lock"],
   "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
 }
