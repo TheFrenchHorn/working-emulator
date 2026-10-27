@@ -181,31 +181,66 @@ class EJS_COMPRESSION {
     decompressFile(method, data, updateMsg, fileCbFunc) {
         return new Promise(async callback => {
             const file = await this.getWorkerFile(method);
-            const worker = new Worker(URL.createObjectURL(file));
             const files = {};
-            worker.onmessage = (data) => {
-                if (!data.data) return;
-                //data.data.t/ 4=progress, 2 is file, 1 is zip done
-                if (data.data.t === 4) {
-                    const pg = data.data;
+
+            const handleMessage = (data) => {
+                if (!data) return;
+                if (data.t === 4) {
+                    const pg = data;
                     const num = Math.floor(pg.current / pg.total * 100);
-                    if (isNaN(num)) return;
-                    const progress = " " + num.toString() + "%";
-                    updateMsg(progress, true);
-                }
-                if (data.data.t === 2) {
-                    if (typeof fileCbFunc === "function") {
-                        fileCbFunc(data.data.file, data.data.data);
-                        files[data.data.file] = true;
-                    } else {
-                        files[data.data.file] = data.data.data;
+                    if (!isNaN(num)) {
+                        const progress = " " + num.toString() + "%";
+                        updateMsg(progress, true);
                     }
                 }
-                if (data.data.t === 1) {
+                if (data.t === 2) {
+                    if (typeof fileCbFunc === "function") {
+                        fileCbFunc(data.file, data.data);
+                        files[data.file] = true;
+                    } else {
+                        files[data.file] = data.data;
+                    }
+                }
+                if (data.t === 1) {
+                    callback(files);
+                }
+            };
+
+            let worker = null;
+            try {
+                const blobUrl = URL.createObjectURL(file);
+                worker = new Worker(blobUrl);
+                worker.onmessage = (e) => handleMessage(e.data);
+                worker.onerror = () => runFallback();
+                worker.postMessage(data);
+                return;
+            } catch (err) {
+                runFallback();
+            }
+
+            async function runFallback() {
+                try {
+                    const scriptText = await file.text();
+                    const frame = document.createElement("iframe");
+                    frame.style.display = "none";
+                    document.body.appendChild(frame);
+                    const frameWindow = frame.contentWindow;
+                    frameWindow.postMessage = (msg) => handleMessage(msg);
+                    const s = frameWindow.document.createElement("script");
+                    s.textContent = scriptText;
+                    frameWindow.document.head.appendChild(s);
+                    if (typeof frameWindow.onmessage === "function") {
+                        frameWindow.onmessage({ data: data });
+                    }
+                    const origCallback = callback;
+                    callback = (res) => {
+                        setTimeout(() => { try { frame.remove(); } catch(e){} }, 500);
+                        origCallback(res);
+                    };
+                } catch (fallbackErr) {
                     callback(files);
                 }
             }
-            worker.postMessage(data);
         });
     }
 }

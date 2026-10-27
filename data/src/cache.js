@@ -136,7 +136,7 @@ class EJS_Download {
                     cached = await this.storageCache.get(url, false, "url");
                 }
                 const now = Date.now();
-                if (cached) {
+                if (cached && Array.isArray(cached.files) && cached.files.length > 0 && cached.files[0] && cached.files[0].bytes && cached.files[0].bytes.byteLength > 0) {
                     if (cached.cacheExpiry && cached.cacheExpiry > now) {
                         if (this.debug) console.log("Using cached version of", url);
                         resolve(cached);
