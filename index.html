@@ -204,6 +204,15 @@
                     <input type="radio" id="browserModeMobile" name="browserMode" value="mobile">
                     <label for="browserModeMobile"> Mobile </label>
                 </div>
+                <div class="advancedOptionsBoxRow">
+                    <span>Data source: </span>
+                    <select id="dataSourceSelect" style="width: auto; margin: 0; padding: 0.2em 0.5em; font-size: 13px;">
+                        <option value="cdn-stable" selected>EmulatorJS CDN (Stable - Recommended for Google Pages / Web)</option>
+                        <option value="cdn-latest">EmulatorJS CDN (Latest)</option>
+                        <option value="cdn-nightly">EmulatorJS CDN (Nightly)</option>
+                        <option value="local">Local (data/ folder)</option>
+                    </select>
+                </div>
             </div>
         </div>
 
@@ -454,7 +463,20 @@
                 window.EJS_biosUrl = biosUrl;
                 window.EJS_gameUrl = url;
                 window.EJS_core = core;
-                window.EJS_pathtodata = "data/";
+                let dataPath = "https://cdn.emulatorjs.org/stable/data/";
+                const dataSourceSelect = document.getElementById("dataSourceSelect");
+                if (dataSourceSelect) {
+                    if (dataSourceSelect.value === "local") {
+                        dataPath = "data/";
+                    } else if (dataSourceSelect.value === "cdn-latest") {
+                        dataPath = "https://cdn.emulatorjs.org/latest/data/";
+                    } else if (dataSourceSelect.value === "cdn-nightly") {
+                        dataPath = "https://cdn.emulatorjs.org/nightly/data/";
+                    } else {
+                        dataPath = "https://cdn.emulatorjs.org/stable/data/";
+                    }
+                }
+                window.EJS_pathtodata = dataPath;
                 window.EJS_startOnLoaded = true;
                 window.EJS_DEBUG_XX = enableDebug;
                 window.EJS_threads = enableThreads;
@@ -466,7 +488,7 @@
                         alert("The emulator has exited. This callback can be used to do any cleanup or show a message to the user.");
                     };
 
-                script.src = "data/loader.js";
+                script.src = dataPath + "loader.js";
                 document.body.appendChild(script);
             }
             

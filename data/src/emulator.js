@@ -350,9 +350,9 @@ class EmulatorJS {
             "bios": { "name": "BIOS", "dontCache": false, "dontExtractIfCore": ["arcade", "fbneo", "fbalpha2012_cps1", "fbalpha2012_cps2", "same_cdi", "mame", "mame2003_plus", "mame2003"] },
             "parent": { "name": "Parent", "dontCache": false },
             "patch": { "name": "Patch", "dontCache": false },
-            "reports": { "name": "Reports", "dontCache": true },
+            "reports": { "name": "Reports", "dontCache": true, "cdnFallback": true },
             "states": { "name": "States", "dontCache": true },
-            "support": { "name": "Support", "dontCache": true },
+            "support": { "name": "Support", "dontCache": true, "cdnFallback": true },
             "unknown": { "name": "Unknown", "dontCache": true }
         }
 
