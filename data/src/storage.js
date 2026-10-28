@@ -42,32 +42,43 @@ class EJS_STORAGE {
      */
     getObjectStore(mode = "readwrite") {
         return new Promise((resolve, reject) => {
-            if (!window.indexedDB) return resolve();
-            let openRequest = indexedDB.open(this.dbName, 1);
-            openRequest.onerror = () => resolve();
-            openRequest.onsuccess = () => {
-                let db = openRequest.result;
-                let transaction = db.transaction(this.storeName, mode);
-                let objectStore = transaction.objectStore(this.storeName);
-                resolve(objectStore);
-            };
-            openRequest.onupgradeneeded = () => {
-                let db = openRequest.result;
-                let objectStore;
-                if (!db.objectStoreNames.contains(this.storeName)) {
-                    objectStore = db.createObjectStore(this.storeName);
-                } else {
-                    objectStore = openRequest.transaction.objectStore(this.storeName);
-                }
-                // Create indexes if provided
-                if (this.indexes && Array.isArray(this.indexes)) {
-                    for (const idx of this.indexes) {
-                        if (!objectStore.indexNames.contains(idx)) {
-                            objectStore.createIndex(idx, idx, { unique: false });
-                        }
+            try {
+                if (typeof window === "undefined" || !window.indexedDB) return resolve();
+                let openRequest = indexedDB.open(this.dbName, 1);
+                openRequest.onerror = () => resolve();
+                openRequest.onsuccess = () => {
+                    try {
+                        let db = openRequest.result;
+                        let transaction = db.transaction(this.storeName, mode);
+                        let objectStore = transaction.objectStore(this.storeName);
+                        resolve(objectStore);
+                    } catch (e) {
+                        resolve();
                     }
-                }
-            };
+                };
+                openRequest.onupgradeneeded = () => {
+                    try {
+                        let db = openRequest.result;
+                        let objectStore;
+                        if (!db.objectStoreNames.contains(this.storeName)) {
+                            objectStore = db.createObjectStore(this.storeName);
+                        } else {
+                            objectStore = openRequest.transaction.objectStore(this.storeName);
+                        }
+                        if (this.indexes && Array.isArray(this.indexes)) {
+                            for (const idx of this.indexes) {
+                                if (!objectStore.indexNames.contains(idx)) {
+                                    objectStore.createIndex(idx, idx, { unique: false });
+                                }
+                            }
+                        }
+                    } catch (e) {
+                        resolve();
+                    }
+                };
+            } catch (e) {
+                resolve();
+            }
         });
     }
     /**
@@ -138,16 +149,20 @@ class EJS_STORAGE {
      */
     getSizes() {
         return new Promise(async (resolve, reject) => {
-            if (!window.indexedDB) resolve({});
-            const keys = await this.get("?EJS_KEYS!");
-            if (!keys) return resolve({});
-            let rv = {};
-            for (let i = 0; i < keys.length; i++) {
-                const result = await this.get(keys[i]);
-                if (!result || !result.data || typeof result.data.byteLength !== "number") continue;
-                rv[keys[i]] = result.data.byteLength;
+            try {
+                if (typeof window === "undefined" || !window.indexedDB) return resolve({});
+                const keys = await this.get("?EJS_KEYS!");
+                if (!keys) return resolve({});
+                let rv = {};
+                for (let i = 0; i < keys.length; i++) {
+                    const result = await this.get(keys[i]);
+                    if (!result || !result.data || typeof result.data.byteLength !== "number") continue;
+                    rv[keys[i]] = result.data.byteLength;
+                }
+                resolve(rv);
+            } catch (e) {
+                resolve({});
             }
-            resolve(rv);
         })
     }
     /**
@@ -156,16 +171,20 @@ class EJS_STORAGE {
      */
     getAll() {
         return new Promise(async (resolve, reject) => {
-            if (!window.indexedDB) return resolve([]);
-            const keys = await this.get("?EJS_KEYS!");
-            if (!keys) return resolve([]);
-            let rv = [];
-            for (let i = 0; i < keys.length; i++) {
-                const result = await this.get(keys[i]);
-                if (!result) continue;
-                rv.push(result);
+            try {
+                if (typeof window === "undefined" || !window.indexedDB) return resolve([]);
+                const keys = await this.get("?EJS_KEYS!");
+                if (!keys) return resolve([]);
+                let rv = [];
+                for (let i = 0; i < keys.length; i++) {
+                    const result = await this.get(keys[i]);
+                    if (!result) continue;
+                    rv.push(result);
+                }
+                resolve(rv);
+            } catch (e) {
+                resolve([]);
             }
-            resolve(rv);
         });
     }
     /**
@@ -174,10 +193,14 @@ class EJS_STORAGE {
      */
     getKeys() {
         return new Promise(async (resolve, reject) => {
-            if (!window.indexedDB) return resolve([]);
-            const keys = await this.get("?EJS_KEYS!");
-            if (!keys) return resolve([]);
-            resolve(keys);
+            try {
+                if (typeof window === "undefined" || !window.indexedDB) return resolve([]);
+                const keys = await this.get("?EJS_KEYS!");
+                if (!keys) return resolve([]);
+                resolve(keys);
+            } catch (e) {
+                resolve([]);
+            }
         });
     }
 }

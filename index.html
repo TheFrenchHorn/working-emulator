@@ -7,8 +7,42 @@
         <link rel="icon" href="docs/favicon.ico" sizes="16x16 32x32 48x48 64x64" type="image/vnd.microsoft.icon">
         <meta name="viewport" content="width = device-width, initial-scale = 1">
         <script>
-            // Fallback for screen wake lock when permissions policy restricts it
+            // Polyfills and safeguards for sandboxed environments
             (function() {
+                try {
+                    var testKey = "__ejs_test__";
+                    window.localStorage.setItem(testKey, testKey);
+                    window.localStorage.removeItem(testKey);
+                } catch (e) {
+                    var memoryStorage = {};
+                    try {
+                        Object.defineProperty(window, 'localStorage', {
+                            value: {
+                                getItem: function(k) { return memoryStorage.hasOwnProperty(k) ? memoryStorage[k] : null; },
+                                setItem: function(k, v) { memoryStorage[k] = String(v); },
+                                removeItem: function(k) { delete memoryStorage[k]; },
+                                clear: function() { memoryStorage = {}; },
+                                key: function(i) { return Object.keys(memoryStorage)[i] || null; },
+                                get length() { return Object.keys(memoryStorage).length; }
+                            },
+                            writable: true,
+                            configurable: true
+                        });
+                    } catch (e2) {}
+                }
+
+                try {
+                    if (!window.indexedDB) {}
+                } catch (e) {
+                    try {
+                        Object.defineProperty(window, 'indexedDB', {
+                            value: null,
+                            writable: true,
+                            configurable: true
+                        });
+                    } catch (e2) {}
+                }
+
                 function createSentinel(type) {
                     return {
                         released: false,
@@ -207,10 +241,11 @@
                 <div class="advancedOptionsBoxRow">
                     <span>Data source: </span>
                     <select id="dataSourceSelect" style="width: auto; margin: 0; padding: 0.2em 0.5em; font-size: 13px;">
-                        <option value="cdn-stable" selected>EmulatorJS CDN (Stable - Recommended for Google Pages / Web)</option>
+                        <option value="auto" selected>Auto (Local server if available, CDN for static / Google Pages)</option>
+                        <option value="local">Local (data/ folder)</option>
+                        <option value="cdn-stable">EmulatorJS CDN (Stable)</option>
                         <option value="cdn-latest">EmulatorJS CDN (Latest)</option>
                         <option value="cdn-nightly">EmulatorJS CDN (Nightly)</option>
-                        <option value="local">Local (data/ folder)</option>
                     </select>
                 </div>
                 <div class="advancedOptionsBoxRow">
@@ -257,6 +292,24 @@
                 console.log(`Cache is ${cacheEnabled ? "enabled" : "disabled"}`);
                 window.EJS_cacheConfig.enabled = cacheEnabled;
             });
+            const clearCacheBtn = document.getElementById("clearCacheBtn");
+            const cacheClearStatus = document.getElementById("cacheClearStatus");
+            if (clearCacheBtn) {
+                clearCacheBtn.addEventListener("click", () => {
+                    try {
+                        if (typeof window !== "undefined" && window.indexedDB) {
+                            window.indexedDB.deleteDatabase("EmulatorJS-Cache");
+                            window.indexedDB.deleteDatabase("EmulatorJS-states");
+                        }
+                        if (cacheClearStatus) {
+                            cacheClearStatus.textContent = "Cache cleared!";
+                            setTimeout(() => { if (cacheClearStatus) cacheClearStatus.textContent = ""; }, 3000);
+                        }
+                    } catch (e) {
+                        if (cacheClearStatus) cacheClearStatus.textContent = "Cleared";
+                    }
+                });
+            }
             const threadsToggleAvailable = document.getElementById("advancedOptionsBoxThreads");
             const threadsToggle = document.getElementById("threadsToggle");
             threadsToggle.addEventListener("change", (event) => {
@@ -455,31 +508,38 @@
                 sub.id = "game"
                 div.id = "display"
 
+                let dataPath = "data/";
+                const dataSourceSelect = document.getElementById("dataSourceSelect");
+                const dataSourceValue = dataSourceSelect ? dataSourceSelect.value : "auto";
+                if (dataSourceValue === "local") {
+                    dataPath = "data/";
+                } else if (dataSourceValue === "cdn-stable") {
+                    dataPath = "https://cdn.emulatorjs.org/stable/data/";
+                } else if (dataSourceValue === "cdn-latest") {
+                    dataPath = "https://cdn.emulatorjs.org/latest/data/";
+                } else if (dataSourceValue === "cdn-nightly") {
+                    dataPath = "https://cdn.emulatorjs.org/nightly/data/";
+                } else {
+                    const isGoogle = typeof window !== "undefined" && (window.location.hostname.includes("google") || window.location.origin === "null");
+                    if (window.location.protocol.startsWith("http") && !isGoogle) {
+                        dataPath = "data/";
+                    } else {
+                        dataPath = "https://cdn.emulatorjs.org/stable/data/";
+                    }
+                }
+
                 const top = document.getElementById("top");
                 top.remove();
                 box.remove();
                 div.appendChild(sub);
                 advanced.remove();
-                document.body.appendChild(div)
+                document.body.appendChild(div);
 
                 window.EJS_player = "#game";
                 window.EJS_gameName = parts.shift();
                 window.EJS_biosUrl = biosUrl;
                 window.EJS_gameUrl = url;
                 window.EJS_core = core;
-                let dataPath = "https://cdn.emulatorjs.org/stable/data/";
-                const dataSourceSelect = document.getElementById("dataSourceSelect");
-                if (dataSourceSelect) {
-                    if (dataSourceSelect.value === "local") {
-                        dataPath = "data/";
-                    } else if (dataSourceSelect.value === "cdn-latest") {
-                        dataPath = "https://cdn.emulatorjs.org/latest/data/";
-                    } else if (dataSourceSelect.value === "cdn-nightly") {
-                        dataPath = "https://cdn.emulatorjs.org/nightly/data/";
-                    } else {
-                        dataPath = "https://cdn.emulatorjs.org/stable/data/";
-                    }
-                }
                 window.EJS_pathtodata = dataPath;
                 window.EJS_startOnLoaded = true;
                 window.EJS_DEBUG_XX = enableDebug;

@@ -133,7 +133,11 @@ class EJS_Download {
 
                 let cached = null;
                 if (this.storageCache) {
-                    cached = await this.storageCache.get(url, false, "url");
+                    try {
+                        cached = await this.storageCache.get(url, false, "url");
+                    } catch (e) {
+                        cached = null;
+                    }
                 }
                 const now = Date.now();
                 if (cached && Array.isArray(cached.files) && cached.files.length > 0 && cached.files[0] && cached.files[0].bytes && cached.files[0].bytes.byteLength > 0) {
@@ -278,7 +282,9 @@ class EJS_Download {
                     const key = this.storageCache.generateCacheKey(files[0].bytes);
                     const cacheItem = new EJS_CacheItem(key, files, now, type, responseType, filename, url, cacheExpiry);
                     if (dontCache === false) {
-                        await this.storageCache.put(cacheItem);
+                        try {
+                            await this.storageCache.put(cacheItem);
+                        } catch (e) {}
                     }
                     resolve(cacheItem);
                 } else {
@@ -336,39 +342,52 @@ class EJS_Cache {
      */
     async createCacheDatabase() {
         if (!this.enabled) return;
-
         if (this.storage && this.blobStorage) return;
 
-        return new Promise((resolve, reject) => {
-            const indexes = ["type", "url"];
-            const request = window.indexedDB.open(this.databaseName, 1);
-
-            request.onupgradeneeded = (event) => {
-                const db = event.target.result;
-                // Create metadata stores
-                const cacheStore = db.createObjectStore("cache");
-                // Create indexes for cache store if indexes array is present
-                if (Array.isArray(indexes)) {
-                    for (const idx of indexes) {
-                        if (!cacheStore.indexNames.contains(idx)) {
-                            cacheStore.createIndex(idx, idx, { unique: false });
-                        }
-                    }
+        return new Promise((resolve) => {
+            try {
+                if (typeof window === "undefined" || !window.indexedDB) {
+                    this.enabled = false;
+                    return resolve();
                 }
-                // Create blobs store
-                db.createObjectStore("blobs");
-            };
+                const indexes = ["type", "url"];
+                const request = window.indexedDB.open(this.databaseName, 1);
 
-            request.onsuccess = (event) => {
-                this.storage = new EJS_STORAGE(this.databaseName, "cache", indexes);
-                this.blobStorage = new EJS_STORAGE(this.databaseName, "blobs");
+                request.onupgradeneeded = (event) => {
+                    try {
+                        const db = event.target.result;
+                        const cacheStore = db.createObjectStore("cache");
+                        if (Array.isArray(indexes)) {
+                            for (const idx of indexes) {
+                                if (!cacheStore.indexNames.contains(idx)) {
+                                    cacheStore.createIndex(idx, idx, { unique: false });
+                                }
+                            }
+                        }
+                        db.createObjectStore("blobs");
+                    } catch (e) {
+                        this.enabled = false;
+                    }
+                };
+
+                request.onsuccess = (event) => {
+                    try {
+                        this.storage = new EJS_STORAGE(this.databaseName, "cache", indexes);
+                        this.blobStorage = new EJS_STORAGE(this.databaseName, "blobs");
+                    } catch (e) {
+                        this.enabled = false;
+                    }
+                    resolve();
+                };
+
+                request.onerror = () => {
+                    this.enabled = false;
+                    resolve();
+                };
+            } catch (err) {
+                this.enabled = false;
                 resolve();
-            };
-
-            request.onerror = (event) => {
-                console.error("Error creating cache database:", event);
-                reject(event);
-            };
+            }
         });
     }
 

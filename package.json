@@ -16,7 +16,9 @@
     "scripts": {
         "start": "http-server . -p 3000 -c-1",
         "minify": "node minify/minify.js",
-        "build": "node build.js",
+        "build": "node minify/minify.js",
+        "lint": "node --check data/src/cache.js data/src/storage.js",
+        "package": "node build.js",
         "update": "node update.js",
         "docs": "jsdoc data/src/*.js -d jsdoc"
     },
